@@ -18,6 +18,8 @@
 #include <time.h>
 #define popen _popen
 #define pclose _pclose
+#define SIZE_BUFFER 16384
+#define SIZE_STR 128
 
 SOCKET createSock(char * host_irc, unsigned short port_irc)
 {
@@ -34,13 +36,6 @@ SOCKET createSock(char * host_irc, unsigned short port_irc)
         return 0;
     }
 
-    if ((_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET)
-    {
-        printf("Socket creation failed!\n");
-        WSACleanup();
-        return 0;
-    }
-
     //resolve IP address for hostname
     if ((host = gethostbyname(host_irc)) == NULL)
     {
@@ -50,9 +45,16 @@ SOCKET createSock(char * host_irc, unsigned short port_irc)
     }
 
     //setup our socket address structure
-    sock_addr.sin_port = htons(port_irc);
     sock_addr.sin_family = AF_INET;
+    sock_addr.sin_port = htons(port_irc);
     sock_addr.sin_addr.s_addr = *((unsigned long*)host->h_addr);
+
+    if ((_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET)
+    {
+        printf("Socket creation failed!\n");
+        WSACleanup();
+        return 0;
+    }
 
     //attempt to connect to server
     if (connect(_socket, (struct sockaddr*)(&sock_addr), sizeof(sock_addr)) != 0)
@@ -65,12 +67,35 @@ SOCKET createSock(char * host_irc, unsigned short port_irc)
     return _socket;
 }
 
-
 void deleteSocket(SOCKET _socket)
 {
     shutdown(_socket, SD_SEND);	//shutdown our socket
     closesocket(_socket);       //close our socket entirely
     WSACleanup();               //cleanup Winsock
+}
+
+//send user and nick to irc host
+void sendUserNick(  SOCKET _socket,
+                    char *nick,
+                    char *bot_name,
+                    char *prefix_name,
+                    char *prefix_nick )
+{
+    char    name[SIZE_STR],
+            tmp_1[SIZE_STR], tmp_2[SIZE_STR],
+            tmp_3[SIZE_STR], tmp_4[SIZE_STR],
+            tmp_5[SIZE_STR];
+
+    char *msg_nick_name =
+            (char *)malloc(strlen(prefix_name) + strlen(prefix_nick) + 128);
+    srand((unsigned int)time(0));
+    sprintf(msg_nick_name, "USER %s%d 0 * :%s\nNICK %s%d\n",
+            prefix_name, rand(), bot_name, prefix_nick, rand());
+    sscanf(msg_nick_name, "%s%s%s%s%s%s%s",
+           tmp_1, name, tmp_2, tmp_3, tmp_4, tmp_5, nick);
+    send(_socket, msg_nick_name, (int)strlen(msg_nick_name), 0);
+    printf("%s", msg_nick_name);
+    free(msg_nick_name);
 }
 
  /*
@@ -83,8 +108,7 @@ int WINAPI WinMain(
                   )
 */
 
-#define SIZE_BUFFER 16384
-#define SIZE_STR 128
+
 int main()
 {
     //must be many servers if one not avialable
@@ -113,9 +137,7 @@ int main()
             buffer_tmp[SIZE_BUFFER],
             //vars for parser msg from server
             usnd[SIZE_STR], snick[SIZE_STR],
-            nick[SIZE_STR], name[SIZE_STR], srvcmd[SIZE_STR],
-            tmp_1[SIZE_STR], tmp_2[SIZE_STR], tmp_3[SIZE_STR],
-            tmp_4[SIZE_STR], tmp_5[SIZE_STR];
+            nick[SIZE_STR], srvcmd[SIZE_STR];
 
     int len_buff_from; //length buffer from server
     unsigned int i = 0,
@@ -135,7 +157,7 @@ int main()
     {
         if (i == (count_hosts - 1))
             i = 0;
-
+//TODO to function
         //connect to irc host
         if (!(_socket =
               createSock(host_irc[i], (unsigned short)atoi(port_irc))))
@@ -146,19 +168,14 @@ int main()
             continue;
         }
         printf("Connected to %s\n", host_irc[i]);
-
+//TODO to function
         //send user and nick to irc host
-        msg_nick_name =
-                (char *)malloc(strlen(prefix_name) + strlen(prefix_nick) + 128);
-        srand((unsigned int)time(0));
-        sprintf(msg_nick_name, "USER %s%d 0 * :%s\nNICK %s%d\n",
-                prefix_name, rand(), bot_name, prefix_nick, rand());
-        sscanf(msg_nick_name, "%s%s%s%s%s%s%s",
-               tmp_1, name, tmp_2, tmp_3, tmp_4, tmp_5, nick);
-        send(_socket, msg_nick_name, (int)strlen(msg_nick_name), 0);
-        printf("%s", msg_nick_name);
-        free(msg_nick_name);
-
+        sendUserNick(   _socket,
+                         nick,
+                         bot_name,
+                         prefix_name,
+                         prefix_nick );
+//TODO to function
         while((len_buff_from =
                recv(_socket, buffer_from, sizeof(buffer_from), 0)) != SOCKET_ERROR)
         {
