@@ -139,8 +139,8 @@ int main()
         //connect to irc host
         if (!(_socket =
               createSock(host_irc[i], (unsigned short)atoi(port_irc))))
-        {
-            printf("Change server\n");
+        {            
+            printf("Can't connected to %s\n", host_irc[i]);
             deleteSocket(_socket);
             i++;
             continue;
@@ -206,8 +206,9 @@ int main()
                 cmd+=2;
 
                 //reconnect server
-                if (strstr(cmd, "!reconnect"))
+                if (strstr(cmd, "!change"))
                 {
+                    printf("Change server\n");
                     i++;
                     send(_socket, cmd_part, (int)strlen(cmd_part), 0);
                     send(_socket, cmd_quit, (int)strlen(cmd_quit), 0);
