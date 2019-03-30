@@ -84,10 +84,10 @@ void joinToChannel(SOCKET _socket,
                    struct commands *cmds,
                    struct buffers *buffs)
 {
-    if (strstr(buffs->buffer_from, MOTD) || strstr(buffs->buffer_from, MODE))
+    if (strstr(buffs->from, MOTD) || strstr(buffs->from, MODE))
     {
-        send(_socket, cmds->cmd_join, (int)strlen(cmds->cmd_join), 0);
-        printf("%s", cmds->cmd_join);
+        send(_socket, cmds->join, (int)strlen(cmds->join), 0);
+        printf("%s", cmds->join);
     }
 }
 
@@ -97,16 +97,16 @@ boolean pingPong(SOCKET _socket,
               struct commands *cmds
               )
 {
-    unsigned int len_cmd_pong = strlen(cmds->cmd_pong);
-    if(!strncmp (PING, buff->buffer_from, 4))
+    unsigned int len_cmd_pong = strlen(cmds->pong);
+    if(!strncmp (PING, buff->from, 4))
     {
-        printf("%s", buff->buffer_from);
-        cmds->cmd_ping = (char *) malloc(strlen(buff->buffer_from) + len_cmd_pong);
-        buff->sub_buff_from = strchr(buff->buffer_from, ':');
-        sprintf(cmds->cmd_ping, "%s%s", cmds->cmd_pong, buff->sub_buff_from);
-        printf("%s", cmds->cmd_ping);
-        send(_socket, cmds->cmd_ping, (int)strlen(cmds->cmd_ping), 0);
-        free (cmds->cmd_ping);
+        printf("%s", buff->from);
+        cmds->ping = (char *)malloc(strlen(buff->from) + len_cmd_pong);
+        buff->from_sub = strchr(buff->from, ':');
+        sprintf(cmds->ping, "%s%s", cmds->pong, buff->from_sub);
+        printf("%s", cmds->ping);
+        send(_socket, cmds->ping, (int)strlen(cmds->ping), 0);
+        free (cmds->ping);
         return TRUE;
     }
     return  FALSE;
@@ -131,8 +131,8 @@ enum FlagsCommandRemoteUser commandFromRemoteUser(SOCKET _socket,
             [ userfrom@ip servercmd userto : {command param ...}
              (this subsrtring is write to var - pcmd) ]
         */
-        cmds->cmd = (char *)malloc(strlen(buffs->buffer_from));
-        cmds->cmd = buffs->buffer_from;
+        cmds->cmd = (char *)malloc(strlen(buffs->from));
+        cmds->cmd = buffs->from;
         while(cmds->cmd[1] != ':')
         {
             cmds->cmd++;
@@ -142,8 +142,8 @@ enum FlagsCommandRemoteUser commandFromRemoteUser(SOCKET _socket,
         //command for reconnect server
         if (strstr(cmds->cmd, CMD_RECONNECT))
         {
-            send(_socket, cmds->cmd_part, (int)strlen(cmds->cmd_part), 0);
-            send(_socket, cmds->cmd_quit, (int)strlen(cmds->cmd_quit), 0);
+            send(_socket, cmds->part, (int)strlen(cmds->part), 0);
+            send(_socket, cmds->quit, (int)strlen(cmds->quit), 0);
             return Reconnect;
         }
         //command for stopping bot
@@ -156,19 +156,19 @@ enum FlagsCommandRemoteUser commandFromRemoteUser(SOCKET _socket,
         printf("%s", cmds->cmd);
 
         //send result of command
-        while(fgets(buffs->buffer_tmp, sizeof(buffs->buffer_tmp), io_buff))
+        while(fgets(buffs->tmp, sizeof(buffs->tmp), io_buff))
         {
-            strcpy(buffs->buffer_to, PRIVMSG_TO_ADMIN);
-            strcat(buffs->buffer_to, buffs->buffer_tmp);
-            send(_socket, buffs->buffer_to, (int)strlen(buffs->buffer_to), 0);
+            strcpy(buffs->to, PRIVMSG_TO_REMOTE_USER);
+            strcat(buffs->to, buffs->tmp);
+            send(_socket, buffs->to, (int)strlen(buffs->to), 0);
         }
 
-        memset(buffs->buffer_to, 0, sizeof(buffs->buffer_to));
-        memset(buffs->buffer_tmp, 0, sizeof(buffs->buffer_tmp));
+        memset(buffs->to, 0, sizeof(buffs->to));
+        memset(buffs->tmp, 0, sizeof(buffs->tmp));
     }
     else
     {
-        printf("%s", buffs->buffer_from);
+        printf("%s", buffs->from);
         return NotPrivMsg;
     }
 

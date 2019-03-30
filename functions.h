@@ -11,7 +11,7 @@
 SOCKET createSocket(char * host_irc, unsigned short port_irc);
 void deleteSocket(SOCKET _socket);
 boolean pingPong(SOCKET _socket,
-              struct buffers *buff,
+              struct buffers *buffs,
               struct commands *cmds
               );
 enum FlagsCommandRemoteUser
@@ -21,11 +21,8 @@ enum FlagsCommandRemoteUser
                            struct vars_messages *vars_msgs
                            );
 void joinToChannel(SOCKET _socket,
-                   struct commands *cmds,
-                   struct buffers *buffs);
-void joinToChannel(SOCKET _socket,
-                   struct commands *cmds,
-                   struct buffers *buffs);
+                   struct buffers *buffs,
+                   struct commands *cmds);
 void sendUserNick(  SOCKET _socket,
                     struct nickname *nicknm,
                     struct vars_messages *vars_msg);

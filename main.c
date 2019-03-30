@@ -22,7 +22,6 @@ int WINAPI WinMain(
                   )
 */
 
-
 int main()
 {
     //must be many servers if one not avialable
@@ -43,8 +42,8 @@ int main()
 
     count_hosts = sizeof(serv.hosts) / sizeof(serv.hosts[0]);
 
-    memset(buffs.buffer_tmp, 0, sizeof(buffs.buffer_tmp));
-    memset(buffs.buffer_from, 0, sizeof(buffs.buffer_from));
+    memset(buffs.tmp, 0, sizeof(buffs.tmp));
+    memset(buffs.from, 0, sizeof(buffs.from));
 
     while(1)
     {
@@ -69,19 +68,19 @@ int main()
                         &vars_msgs);
 
         while((len_buff_from =
-               recv(_socket, buffs.buffer_from,
-                    sizeof(buffs.buffer_from), 0))
+               recv(_socket, buffs.from,
+                    sizeof(buffs.from), 0))
               != SOCKET_ERROR)
         {
             //parse buffer for < userfrom@ip servercmd userto : >
-            sscanf(buffs.buffer_from, "%s%s%s",
+            sscanf(buffs.from, "%s%s%s",
                    vars_msgs.usnd, vars_msgs.srvcmd, vars_msgs.snick);
 
             joinToChannel(  _socket,
-                            &cmds,
-                            &buffs);
+                            &buffs,
+                            &cmds);
             //for reconnect
-            if(strstr(buffs.buffer_from, ERROR_CLOSE_LINK))
+            if(strstr(buffs.from, ERROR_CLOSE_LINK))
             {
                 i++;
                 break;
@@ -118,8 +117,8 @@ int main()
                 printf("Changed server\n");
                 ++i;
                 changed_server = 0;
-                send(_socket, cmds.cmd_part, (int)strlen(cmds.cmd_part), 0);
-                send(_socket, cmds.cmd_quit, (int)strlen(cmds.cmd_quit), 0);
+                send(_socket, cmds.part, (int)strlen(cmds.part), 0);
+                send(_socket, cmds.quit, (int)strlen(cmds.quit), 0);
                 deleteSocket(_socket);
                 break;
             }
@@ -127,15 +126,15 @@ int main()
             //the end bot work
             if (stopped)
             {
-                send(_socket, cmds.cmd_part, (int)strlen(cmds.cmd_part), 0);
-                send(_socket, cmds.cmd_quit, (int)strlen(cmds.cmd_quit), 0);
+                send(_socket, cmds.part, (int)strlen(cmds.part), 0);
+                send(_socket, cmds.quit, (int)strlen(cmds.quit), 0);
                 deleteSocket(_socket);
                 printf("hexbot is stopped!\n");
                 exit(0);
             }
 
             len_buff_from = 0;
-            memset(buffs.buffer_from, 0, sizeof(buffs.buffer_from));
+            memset(buffs.from, 0, sizeof(buffs.from));
         }
     }
 }
