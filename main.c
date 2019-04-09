@@ -25,10 +25,12 @@ int WINAPI WinMain(
 int main()
 {
     //must be many servers if one not avialable
-    struct server serv = { {HOST1, HOST2, HOST3}, PORT };
-    struct nickname nicknm = {PREFIX_NAME, PREFIX_NICK, BOT_NAME};
-    struct commands cmds = {NULL, NULL, JOIN_CHANNEL,
-                            PONG, PART_CHANNEL, QUIT_MSG};
+    struct server serv = { {"chat.freenode.net",
+                           "irc.757.org",
+                           "irc.eth-0.nl"}, "6667" };
+    struct nickname nicknm = {"zname", "znick", "hexbot"};
+    struct commands cmds = {NULL, NULL, "JOIN #h3xb0t\n",
+                            "PONG ", "PART #h3xb0t\n", "QUIT :bye\n"};
     struct buffers buffs;
     struct vars_messages vars_msgs;
 
@@ -80,7 +82,7 @@ int main()
                             &buffs,
                             &cmds);
             //for reconnect
-            if(strstr(buffs.from, ERROR_CLOSE_LINK))
+            if(strstr(buffs.from, "ERROR :Closing Link"))
             {
                 i++;
                 break;

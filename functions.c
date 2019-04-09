@@ -69,7 +69,7 @@ void sendUserNick(  SOCKET _socket,
             (char *)malloc(strlen(nicknm->prefix_name)
                            + strlen(nicknm->prefix_nick) + 128);
     srand((unsigned int)time(0));
-    sprintf(msg_nick_name, USER" %s%d 0 * :%s\n"NICK" %s%d\n",
+    sprintf(msg_nick_name, "USER %s%d 0 * :%s\nNICK %s%d\n",
             nicknm->prefix_name, rand(), nicknm->bot_name,
             nicknm->prefix_nick, rand());
     sscanf(msg_nick_name, "%s%s%s%s%s%s%s",
@@ -81,10 +81,11 @@ void sendUserNick(  SOCKET _socket,
 
 //join to channel
 void joinToChannel(SOCKET _socket,
-                   struct commands *cmds,
-                   struct buffers *buffs)
+                   struct buffers *buffs,
+                   struct commands *cmds
+                   )
 {
-    if (strstr(buffs->from, MOTD) || strstr(buffs->from, MODE))
+    if (strstr(buffs->from, "/MOTD") || strstr(buffs->from, "MODE"))
     {
         send(_socket, cmds->join, (int)strlen(cmds->join), 0);
         printf("%s", cmds->join);
@@ -98,11 +99,12 @@ boolean pingPong(SOCKET _socket,
               )
 {
     unsigned int len_cmd_pong = strlen(cmds->pong);
-    if(!strncmp (PING, buff->from, 4))
+    if(!strncmp ("PING", buff->from, 4))
     {
         printf("%s", buff->from);
         cmds->ping = (char *)malloc(strlen(buff->from) + len_cmd_pong);
         buff->from_sub = strchr(buff->from, ':');
+        ++buff->from_sub;
         sprintf(cmds->ping, "%s%s", cmds->pong, buff->from_sub);
         printf("%s", cmds->ping);
         send(_socket, cmds->ping, (int)strlen(cmds->ping), 0);
@@ -122,7 +124,7 @@ enum FlagsCommandRemoteUser commandFromRemoteUser(SOCKET _socket,
                            )
 {
     FILE *io_buff;
-    if(!strcmp(vars_msgs->srvcmd, PRIVMSG)
+    if(!strcmp(vars_msgs->srvcmd, "PRIVMSG")
             && !strcmp(vars_msgs->snick, vars_msgs->nick))
     {
         /*
@@ -140,14 +142,14 @@ enum FlagsCommandRemoteUser commandFromRemoteUser(SOCKET _socket,
         cmds->cmd+=2;
 
         //command for reconnect server
-        if (strstr(cmds->cmd, CMD_RECONNECT))
+        if (strstr(cmds->cmd, "!change"))
         {
             send(_socket, cmds->part, (int)strlen(cmds->part), 0);
             send(_socket, cmds->quit, (int)strlen(cmds->quit), 0);
             return Reconnect;
         }
         //command for stopping bot
-        if (strstr(cmds->cmd, CMD_STOP))
+        if (strstr(cmds->cmd, "!stop"))
         {
             return Stopped;
         }
@@ -158,7 +160,7 @@ enum FlagsCommandRemoteUser commandFromRemoteUser(SOCKET _socket,
         //send result of command
         while(fgets(buffs->tmp, sizeof(buffs->tmp), io_buff))
         {
-            strcpy(buffs->to, PRIVMSG_TO_REMOTE_USER);
+            strcpy(buffs->to, "PRIVMSG hexfox :");
             strcat(buffs->to, buffs->tmp);
             send(_socket, buffs->to, (int)strlen(buffs->to), 0);
         }
