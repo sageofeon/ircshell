@@ -1,6 +1,6 @@
 # [ hexbot IRC bot ][ 2013 ]
 
-   Written by Bashlykov Sergey aka hexfox
+   Written by Serge Bash
 
    hexbot - Remote control of a Windows computer via IRC.
    The IRC bot connects to the IRC server and enters
