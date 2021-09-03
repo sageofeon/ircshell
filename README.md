@@ -1,2 +1,2 @@
-# hexbot
-hexbot - Remote control of a Windows computer via IRC
+# ircshell
+ircshell - Remote control of a Windows computer via IRC
