@@ -54,6 +54,7 @@ int main()
 
         //connect to irc host
         if (!(_socket =
+
               createSocket(serv.hosts[i],
                            (unsigned short)atoi(serv.port))))
         {
